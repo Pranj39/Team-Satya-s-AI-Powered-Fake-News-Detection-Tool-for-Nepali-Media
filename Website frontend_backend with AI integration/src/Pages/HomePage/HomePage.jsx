@@ -24,7 +24,7 @@ function HomePage() {
   };
   const [reviews, setReviews] = useState([])
   useEffect(() => {
-    fetch("http://localhost:8000/getReviews")
+    fetch("/getReviews")
       .then((res) => {
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
@@ -527,7 +527,7 @@ function PopUpUIFrame({ MainSettings }) {
         formdata.append("csrfmiddlewaretoken", csrfToken.value.trim());
       }
 
-      fetch("http://localhost:8000/search_for_extension", {
+      fetch("/search_for_extension", {
         method: "POST",
         body: formdata,
       })
