@@ -483,6 +483,7 @@ function PopUpUIFrame({ MainSettings }) {
   const shareTwitterButton = useRef(document.createElement("div"));
   const shareWhatsAppButton = useRef(document.createElement("div"));
   MainSettings.MainUIFrame = MainUIFrame;
+  const [rating, setRating] = useState(5);
 
   useEffect(() => {
     if (!MainUIFrame.current) return;
@@ -550,6 +551,12 @@ function PopUpUIFrame({ MainSettings }) {
             predictionResult.current.lastElementChild.querySelector(".date").innerHTML = results.accuracy.toFixed(2) + "%";
             predictionResult.current.lastElementChild.querySelector(".source").innerHTML = results.authentic;
             predictionResult.current.lastElementChild.querySelector("h3").innerHTML = "";
+
+            if (socialShareDiv.current) {
+              socialShareDiv.current.style.display = "block";
+              const feedbackForm = socialShareDiv.current.querySelector('.div');
+              if (feedbackForm) feedbackForm.style.display = "block";
+            }
           } else {
             socialShareDiv.current.style.display = "none";
             predictionResult.current.lastElementChild.querySelector("h3").style.color = "red";
@@ -667,22 +674,43 @@ function PopUpUIFrame({ MainSettings }) {
       }
     }
 
-    feedbackBtn.onclick = (e) => {
+    feedbackBtn.current.onclick = (e) => {
       e.preventDefault();
       const feedback = feedbacktextarea.current.value.trim();
       if (feedback.length >= 5) {
         feedbacktextarea.current.nextElementSibling.innerHTML = "";
-        feedbacktextarea.current.value = "";
-        MainUIFrame.current.close();
-        if (window.chrome && window.chrome.runtime) {
-          window.chrome.runtime.sendMessage(
-            {
-              command: "Feedback",
-              feedback,
-            },
-            (response) => { }
-          );
+
+        const formData = new FormData();
+        formData.append("message", feedback);
+        formData.append("review", rating);
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfToken) {
+          formData.append("csrfmiddlewaretoken", csrfToken.value.trim());
         }
+
+        fetch("/send_feedback", {
+          method: "POST",
+          body: formData
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status) {
+              alert("Thank you for your feedback!");
+              feedbacktextarea.current.value = "";
+              MainUIFrame.current.close();
+            } else if (data.authentication) {
+              if (confirm("You need to be logged in to submit feedback. Go to login page?")) {
+                window.location.href = "/accounts/login";
+              }
+            } else {
+              alert("Failed to submit feedback.");
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            alert("An error occurred.");
+          });
+
       } else {
         feedbacktextarea.current.nextElementSibling.innerHTML =
           currentLanguage === "en"
@@ -773,13 +801,23 @@ function PopUpUIFrame({ MainSettings }) {
                 id="social-share"
                 ref={socialShareDiv}
                 style={{
-                  displa: "none",
+                  display: "none",
                 }}
               >
                 <div className="div" style={{ display: "none" }}>
                   <h2 id="feedback-header" ref={feedbackHeader}>
                     Insert News' Text Here:
                   </h2>
+                  <div className="star-rating">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <img
+                        key={star}
+                        src={star <= rating ? window.getStatic("star.png") : window.getStatic("star_blur.png")}
+                        alt={`${star} stars`}
+                        onClick={() => setRating(star)}
+                      />
+                    ))}
+                  </div>
                   <textarea
                     id="news-text-fedback"
                     placeholder="Enter Feedback..."
